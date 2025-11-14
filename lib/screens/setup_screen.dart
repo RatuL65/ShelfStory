@@ -25,7 +25,7 @@ class _SetupScreenState extends State<SetupScreen> {
     super.dispose();
   }
 
-  void _saveName() async {
+  Future<void> _saveName() async {
     if (_nameController.text.trim().isNotEmpty) {
       // Save to SharedPreferences
       final prefs = await SharedPreferences.getInstance();
@@ -66,7 +66,7 @@ class _SetupScreenState extends State<SetupScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSigningIn = false);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Sign in failed: $e')),
       );

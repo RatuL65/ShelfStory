@@ -22,7 +22,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.shelf_story"
-        minSdk = 21  // CHANGED: Increased from flutter.minSdkVersion
+        minSdk = flutter.minSdkVersion  // CHANGED: Increased from flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

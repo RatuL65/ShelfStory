@@ -1,0 +1,87 @@
+name: Build and Release Flutter APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Java
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # Step 3: Set up Flutter
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      # Step 4: Install dependencies
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Step 5: Generate Hive files
+      - name: Generate Hive adapter files
+        run: flutter packages pub run build_runner build --delete-conflicting-outputs
+
+      # Step 6: Download google-services.json (if you have it)
+      # For now we'll skip Firebase/Google Sign-In in automated builds
+      - name: Create dummy google-services.json
+        run: |
+          mkdir -p android/app
+          echo '{"project_info":{"project_number":"dummy"}}' > android/app/google-services.json
+
+      # Step 7: Build APK
+      - name: Build APK
+        run: flutter build apk --release --no-tree-shake-icons
+
+      # Step 8: Get version from pubspec.yaml
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(grep 'version:' pubspec.yaml | cut -d ' ' -f 2 | tr -d '\r')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # Step 9: Create Release and Upload APK
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "build/app/outputs/flutter-apk/app-release.apk"
+          tag: v${{ steps.version.outputs.version }}-build-${{ github.run_number }}
+          name: ShelfStory v${{ steps.version.outputs.version }} (Build ${{ github.run_number }})
+          body: |
+            ## 📚 ShelfStory - Google Sign-In Update
+            
+            **Version:** ${{ steps.version.outputs.version }}
+            **Build Number:** ${{ github.run_number }}
+            **Commit:** ${{ github.sha }}
+            
+            ### ✨ What's New
+            - Added Google Sign-In support (Setup screen)
+            - Google Drive backup UI ready (coming soon)
+            - Updated stats screen
+            - Bug fixes and improvements
+            
+            ### 📥 Download & Install
+            1. Download `app-release.apk` below
+            2. Enable "Install from Unknown Sources" on your phone
+            3. Open the APK file and install
+            
+            ### 🔧 Built with GitHub Actions
+            Automatically built and released from the cloud!
+          token: ${{ secrets.GITHUB_TOKEN }}
+          allowUpdates: true
+          makeLatest: true
