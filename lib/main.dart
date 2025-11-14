@@ -2,22 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'providers/book_provider.dart';
 import 'providers/user_provider.dart';
 import 'screens/setup_screen.dart';
 import 'screens/home_screen.dart';
 import 'utils/constants.dart';
-import 'package:google_fonts/google_fonts.dart';
-
+import 'models/book.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Initialize Firebase first (needed for Google Sign-In)
+  try {
+    await Firebase.initializeApp();
+    print('✅ Firebase initialized successfully');
+  } catch (e) {
+    print('⚠️ Firebase initialization failed: $e');
+    // Continue without Firebase - app will work but Google Sign-In won't
+  }
+  
   // Initialize Hive
   await Hive.initFlutter();
   
-  // Open boxes
-  await Hive.openBox('books');
+  // Register Book adapter (CRITICAL - this was missing!)
+  Hive.registerAdapter(BookAdapter());
+  
+  // Open boxes with proper types
+  await Hive.openBox<Book>('books');
   await Hive.openBox('user');
   await Hive.openBox('settings');
   
@@ -82,32 +95,39 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkFirstLaunch() async {
-    final prefs = await SharedPreferences.getInstance();
-    final hasName = prefs.getString('user_name');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasName = prefs.getString('user_name');
 
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (!mounted) return;
-
-    if (hasName == null || hasName.isEmpty) {
-      // No name saved - go to setup
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const SetupScreen()),
-      );
-    } else {
-      // Name exists - load user data and go to home
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      await userProvider.loadUser();
+      await Future.delayed(const Duration(seconds: 2));
 
       if (!mounted) return;
 
+      if (hasName == null || hasName.isEmpty) {
+        // No name saved - go to setup
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const SetupScreen()),
+        );
+      } else {
+        // Name exists - load user data and go to home
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        await userProvider.loadUser();
+
+        if (!mounted) return;
+
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
+    } catch (e) {
+      print('Error during initialization: $e');
+      // On error, go to setup screen
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const SetupScreen()),
       );
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -140,6 +160,11 @@ class _SplashScreenState extends State<SplashScreen> {
                 color: AppColors.cream,
                 fontStyle: FontStyle.italic,
               ),
+            ),
+            const SizedBox(height: 40),
+            // Add loading indicator
+            CircularProgressIndicator(
+              color: AppColors.accentGold,
             ),
           ],
         ),
