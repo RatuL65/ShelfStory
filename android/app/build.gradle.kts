@@ -1,9 +1,8 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services")  // ADD THIS LINE
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -22,11 +21,11 @@ android {
 
     defaultConfig {
         applicationId = "com.example.shelf_story"
-        minSdk = flutter.minSdkVersion  // CHANGED: Increased from flutter.minSdkVersion
+        minSdk = 23  // CHANGED from 21 to 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        multiDexEnabled = true  // ADD THIS LINE
+        multiDexEnabled = true
     }
 
     buildTypes {
@@ -41,15 +40,8 @@ flutter {
 }
 
 dependencies {
-    // Firebase BoM (Bill of Materials)
     implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
-    
-    // Firebase Auth
     implementation("com.google.firebase:firebase-auth")
-    
-    // Google Play Services Auth (for Google Sign-In)
     implementation("com.google.android.gms:play-services-auth:21.2.0")
-    
-    // MultiDex support
     implementation("androidx.multidex:multidex:2.0.1")
 }
