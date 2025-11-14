@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "188930821368",
+    "project_id": "shelfstory-87c63",
+    "storage_bucket": "shelfstory-87c63.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:188930821368:android:040e42cdf2973448e4ff0d",
+        "android_client_info": {
+          "package_name": "com.example.shelf_story"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAfi-ObbYagRZIXWbpw7OVmXN6poZakOio"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
