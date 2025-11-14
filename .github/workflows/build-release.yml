@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Allows manual trigger
+  workflow_dispatch:
 
 jobs:
   build:
@@ -33,20 +33,20 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # Step 5: Generate Hive files
+      # Step 5: Decode and create google-services.json from secret
+      - name: Create google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          echo $GOOGLE_SERVICES_JSON | base64 -d > android/app/google-services.json
+
+      # Step 6: Generate Hive files
       - name: Generate Hive adapter files
         run: flutter packages pub run build_runner build --delete-conflicting-outputs
 
-      # Step 6: Download google-services.json (if you have it)
-      # For now we'll skip Firebase/Google Sign-In in automated builds
-      - name: Create dummy google-services.json
-        run: |
-          mkdir -p android/app
-          echo '{"project_info":{"project_number":"dummy"}}' > android/app/google-services.json
-
       # Step 7: Build APK
       - name: Build APK
-        run: flutter build apk --release --no-tree-shake-icons
+        run: flutter build apk --release
 
       # Step 8: Get version from pubspec.yaml
       - name: Get version
@@ -63,25 +63,34 @@ jobs:
           tag: v${{ steps.version.outputs.version }}-build-${{ github.run_number }}
           name: ShelfStory v${{ steps.version.outputs.version }} (Build ${{ github.run_number }})
           body: |
-            ## 📚 ShelfStory - Google Sign-In Update
+            ## 📚 ShelfStory - Google Sign-In & Cloud Backup
             
             **Version:** ${{ steps.version.outputs.version }}
             **Build Number:** ${{ github.run_number }}
             **Commit:** ${{ github.sha }}
             
-            ### ✨ What's New
-            - Added Google Sign-In support (Setup screen)
-            - Google Drive backup UI ready (coming soon)
-            - Updated stats screen
-            - Bug fixes and improvements
+            ### ✨ What's New in This Version
+            - ✅ Google Sign-In enabled
+            - ✅ Google Drive backup UI ready
+            - ✅ Stats screen with backup options
+            - ✅ Updated Android SDK to 35
+            - 🔧 Bug fixes and improvements
             
             ### 📥 Download & Install
             1. Download `app-release.apk` below
-            2. Enable "Install from Unknown Sources" on your phone
-            3. Open the APK file and install
+            2. Enable "Install from Unknown Sources" in phone settings
+            3. Open APK and install
+            4. Sign in with Google to enable cloud backup (optional)
+            
+            ### 🎯 Features
+            - Track books with vintage UI
+            - Barcode scanning for ISBN
+            - Reading statistics and streaks
+            - Google Sign-In for cloud backup
+            - Export library as CSV
             
             ### 🔧 Built with GitHub Actions
-            Automatically built and released from the cloud!
+            Automatically built and deployed from the cloud!
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
           makeLatest: true
