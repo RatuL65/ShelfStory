@@ -45,33 +45,42 @@ class _SetupScreenState extends State<SetupScreen> {
     }
   }
 
-  Future<void> _signInWithGoogle() async {
-    setState(() => _isSigningIn = true);
+Future<void> _signInWithGoogle() async {
+  setState(() => _isSigningIn = true);
 
-    try {
-      final user = await _googleSignInService.signInWithGoogle();
+  try {
+    final user = await _googleSignInService.signInWithGoogle();
 
-      if (!mounted) return;
-      setState(() => _isSigningIn = false);
+    if (!mounted) return;
+    setState(() => _isSigningIn = false);
 
-      if (user != null) {
-        // Save user name from Google account
-        _nameController.text = user.displayName ?? 'User';
-        await _saveName();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sign in cancelled')),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isSigningIn = false);
-
+    if (user != null) {
+      // Success! Save name and navigate
+      _nameController.text = user.displayName ?? user.email ?? 'User';
+      await _saveName();
+    } else {
+      // User cancelled
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sign in failed: $e')),
+        const SnackBar(
+          content: Text('Sign-in was cancelled'),
+          duration: Duration(seconds: 2),
+        ),
       );
     }
+  } catch (e) {
+    if (!mounted) return;
+    setState(() => _isSigningIn = false);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Sign-in failed: ${e.toString()}'),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
+}
+
+
 
   @override
   Widget build(BuildContext context) {
