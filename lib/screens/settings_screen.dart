@@ -238,67 +238,72 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
   
-  Future<void> _changeName() async {
-    final controller = TextEditingController();
-    final currentName = Provider.of<UserProvider>(context, listen: false).user?.name ?? '';
-    controller.text = currentName;
-    
-    final newName = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Change Name'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: controller,
-              decoration: InputDecoration(
-                hintText: 'Enter new name',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                prefixIcon: const Icon(Icons.person),
+Future<void> _changeName() async {
+  final controller = TextEditingController();
+  final currentName = Provider.of<UserProvider>(context, listen: false).user?.name ?? '';
+  controller.text = currentName;
+  
+  final newName = await showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Change Name'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: controller,
+            decoration: InputDecoration(
+              hintText: 'Enter new name',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
-              autofocus: true,
-              textCapitalization: TextCapitalization.words,
+              prefixIcon: const Icon(Icons.person),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accentGold,
-            ),
-            child: const Text('Save'),
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
           ),
         ],
       ),
-    );
-    
-    if (newName != null && newName.trim().isNotEmpty && newName != currentName) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_name', newName.trim());
-      
-      if (!mounted) return;
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      await userProvider.loadUser();
-      
-      setState(() {});
-      
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Name updated to ${newName.trim()}'),
-          backgroundColor: Colors.green,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
         ),
-      );
-    }
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, controller.text),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.accentGold,
+          ),
+          child: const Text('Save'),
+        ),
+      ],
+    ),
+  );
+  
+  if (newName != null && newName.trim().isNotEmpty && newName != currentName) {
+    // Save to SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_name', newName.trim());
+    
+    if (!mounted) return;
+    
+    // Update UserProvider - THIS IS THE FIX!
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    await userProvider.updateUserName(newName.trim());
+    
+    // Refresh the settings screen
+    setState(() {});
+    
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Name updated to ${newName.trim()}'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
+}
+
   
   void _showAbout() {
     showAboutDialog(
