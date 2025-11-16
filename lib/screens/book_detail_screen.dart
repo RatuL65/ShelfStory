@@ -100,12 +100,12 @@ class BookDetailScreen extends StatelessWidget {
                 children: [
                   Text(
                     book.title,
-                    style: AppTextStyles.heading,
+                    style: AppTextStyles.heading(context),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'by ${book.author}',
-                    style: AppTextStyles.vintage,
+                    style: AppTextStyles.vintage(context),
                   ),
                   const SizedBox(height: 16),
                   _buildInfoChip(book.genre, Icons.category),
@@ -117,7 +117,7 @@ class BookDetailScreen extends StatelessWidget {
                   if (book.averageRating != null) ...[
                     const Divider(),
                     const SizedBox(height: 16),
-                    Text('Ratings', style: AppTextStyles.subheading),
+                    Text('Ratings', style: AppTextStyles.subheading(context)),
                     const SizedBox(height: 16),
                     _buildRatingRow('Story', book.storyRating),
                     _buildRatingRow('Character', book.characterRating),
@@ -163,7 +163,7 @@ class BookDetailScreen extends StatelessWidget {
                   const SizedBox(height: 24),
                   const Divider(),
                   const SizedBox(height: 16),
-                  Text('Details', style: AppTextStyles.subheading),
+                  Text('Details', style: AppTextStyles.subheading(context)),
                   const SizedBox(height: 16),
                   if (book.price != null)
                     _buildDetailRow('Price', '\$${book.price!.toStringAsFixed(2)}'),
@@ -181,7 +181,7 @@ class BookDetailScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     const Divider(),
                     const SizedBox(height: 16),
-                    Text('Notes', style: AppTextStyles.subheading),
+                    Text('Notes', style: AppTextStyles.subheading(context)),
                     const SizedBox(height: 8),
                     Container(
                       width: double.infinity,
@@ -192,7 +192,7 @@ class BookDetailScreen extends StatelessWidget {
                       ),
                       child: Text(
                         book.notes!,
-                        style: AppTextStyles.body,
+                        style: AppTextStyles.body(context),
                       ),
                     ),
                   ],

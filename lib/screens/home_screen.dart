@@ -7,7 +7,8 @@ import '../widgets/bookshelf_view.dart';
 import '../widgets/streak_tracker.dart';
 import 'add_book_screen.dart';
 import 'stats_screen.dart';
-import 'settings_screen.dart';  // ADD THIS IMPORT
+import 'settings_screen.dart';
+import '../widgets/reading_goal_widget.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -22,6 +23,15 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   String _filterStatus = 'all';
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  bool _isSearching = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
 
   @override
@@ -38,17 +48,49 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _selectedIndex == 0 
-              ? "$userName's Bookshelf" 
-              : 'Reading Stats',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1,
-          ),
-        ),
+        title: _isSearching && _selectedIndex == 0
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Search books...',
+                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+              )
+            : Text(
+                _selectedIndex == 0 
+                    ? "$userName's Bookshelf" 
+                    : 'Reading Stats',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                ),
+              ),
         actions: [
-          // ADD SETTINGS BUTTON FOR BOTH TABS
+          // Search icon (only on Library tab)
+          if (_selectedIndex == 0) ...[
+            IconButton(
+              icon: Icon(_isSearching ? Icons.close : Icons.search),
+              onPressed: () {
+                setState(() {
+                  _isSearching = !_isSearching;
+                  if (!_isSearching) {
+                    _searchController.clear();
+                    _searchQuery = '';
+                  }
+                });
+              },
+              tooltip: _isSearching ? 'Close Search' : 'Search Books',
+            ),
+          ],
+          // Settings icon (both tabs)
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
@@ -61,8 +103,8 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             tooltip: 'Settings',
           ),
-          // EXISTING FILTER BUTTON (only on Library tab)
-          if (_selectedIndex == 0) ...[
+          // Filter menu (only on Library tab when not searching)
+          if (_selectedIndex == 0 && !_isSearching) ...[
             PopupMenuButton<String>(
               icon: const Icon(Icons.filter_list),
               onSelected: (value) {
@@ -121,6 +163,12 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: (index) {
           setState(() {
             _selectedIndex = index;
+            if (index != 0) {
+              // Close search when switching tabs
+              _isSearching = false;
+              _searchController.clear();
+              _searchQuery = '';
+            }
           });
         },
         backgroundColor: AppColors.darkBrown,
@@ -141,23 +189,27 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
 
-  Widget _buildLibraryScreen(String userName) {
-    return Column(
-      children: [
-        const StreakTracker(),
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text(
-            _getFilterTitle(),
-            style: AppTextStyles.subheading,
-          ),
+Widget _buildLibraryScreen(String userName) {
+  return Column(
+    children: [
+      const StreakTracker(),
+      const ReadingGoalWidget(isCompact: true),  // ADD THIS LINE
+      Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Text(
+          _isSearching && _searchQuery.isNotEmpty
+              ? '🔍 Search: "$_searchQuery"'
+              : _getFilterTitle(),
+          style: AppTextStyles.subheading(context),
         ),
-        const Expanded(
-          child: BookshelfView(),
-        ),
-      ],
-    );
-  }
+      ),
+      Expanded(
+        child: BookshelfView(searchQuery: _searchQuery),
+      ),
+    ],
+  );
+}
+
 
 
   String _getFilterTitle() {

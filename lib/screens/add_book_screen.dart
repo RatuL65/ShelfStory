@@ -393,7 +393,8 @@ class _AddBookScreenState extends State<AddBookScreen> {
             // Ratings Section
             Text(
               'Ratings (Optional)',
-              style: AppTextStyles.subheading,
+              style: AppTextStyles.heading(context),
+
             ),
             const SizedBox(height: 16),
             _buildRatingSlider('Story', _storyRating, (value) {

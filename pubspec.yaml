@@ -1,7 +1,7 @@
 name: ShelfStory
 description: A vintage-style personal book tracking app
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.5.0+2
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -53,6 +53,7 @@ dev_dependencies:
   google_sign_in: ^6.2.1
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.1
+  fl_chart: ^0.68.0 
   http: ^1.2.0  # For Google Drive API
 
 flutter_launcher_icons:

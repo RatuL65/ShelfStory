@@ -3,11 +3,14 @@ import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_profile.dart';
 
+
 class UserProvider with ChangeNotifier {
   UserProfile? _user;
   final Box _userBox = Hive.box('user');
 
+
   UserProfile? get user => _user;
+
 
   Future<void> loadUser() async {
     final prefs = await SharedPreferences.getInstance();
@@ -25,6 +28,7 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
   }
 
+
   Future<void> saveUser() async {
     if (_user != null) {
       await _userBox.put('profile', _user!.toJson());
@@ -33,11 +37,13 @@ class UserProvider with ChangeNotifier {
     }
   }
 
+
   Future<void> updateUserName(String name) async {
     if (_user == null) {
       _user = UserProfile(name: name);
     } else {
-      _user!.name = name;
+      // Create new UserProfile with updated name
+      _user = _user!.copyWith(name: name);
     }
 
     final prefs = await SharedPreferences.getInstance();
@@ -63,21 +69,41 @@ class UserProvider with ChangeNotifier {
       return;
     } else if (difference == 1) {
       // Consecutive day, increment streak
-      _user!.readingStreak++;
-      _user!.lastReadingDate = now;
+      final newStreak = _user!.readingStreak + 1;
+      final newLongest = newStreak > _user!.longestStreak 
+          ? newStreak 
+          : _user!.longestStreak;
       
-      if (_user!.readingStreak > _user!.longestStreak) {
-        _user!.longestStreak = _user!.readingStreak;
-      }
+      _user = _user!.copyWith(
+        readingStreak: newStreak,
+        longestStreak: newLongest,
+        lastReadingDate: now,
+      );
       
       saveUser();
     } else if (difference > 1) {
       // Streak broken
-      _user!.readingStreak = 1;
-      _user!.lastReadingDate = now;
+      _user = _user!.copyWith(
+        readingStreak: 1,
+        lastReadingDate: now,
+      );
       saveUser();
     }
   }
+
+
+  Future<void> setReadingGoal(int goal, int year) async {
+    if (_user != null) {
+      _user = _user!.copyWith(
+        yearlyReadingGoal: goal,
+        goalYear: year,
+      );
+      
+      await saveUser();
+      notifyListeners();
+    }
+  }
+
 
   Future<void> logReadingActivity() async {
     if (_user == null) return;
@@ -86,10 +112,14 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
   }
 
+
   Future<void> incrementBooksRead() async {
     if (_user == null) return;
     
-    _user!.totalBooksRead++;
+    _user = _user!.copyWith(
+      totalBooksRead: _user!.totalBooksRead + 1,
+    );
+    
     await saveUser();
     notifyListeners();
   }

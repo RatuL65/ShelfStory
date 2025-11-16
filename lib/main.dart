@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'providers/book_provider.dart';
 import 'providers/user_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/setup_screen.dart';
 import 'screens/home_screen.dart';
 import 'utils/constants.dart';
@@ -32,43 +33,91 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => BookProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: MaterialApp(
-        title: 'ShelfStory',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          primaryColor: AppColors.primaryBrown,
-          scaffoldBackgroundColor: AppColors.backgroundCream,
-          fontFamily: GoogleFonts.merriweather().fontFamily,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: AppColors.primaryBrown,
-            brightness: Brightness.light,
-          ),
-          appBarTheme: AppBarTheme(
-            backgroundColor: AppColors.darkBrown,
-            foregroundColor: AppColors.cream,
-            elevation: 0,
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accentGold,
-              foregroundColor: AppColors.darkBrown,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+      child: const MyAppWithTheme(),
+    );
+  }
+}
+
+
+class MyAppWithTheme extends StatelessWidget {
+  const MyAppWithTheme({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
+    return MaterialApp(
+      title: 'ShelfStory',
+      debugShowCheckedModeBanner: false,
+      themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+      
+      // Light Theme
+      theme: ThemeData(
+        primaryColor: AppColors.primaryBrown,
+        scaffoldBackgroundColor: AppColors.backgroundCream,
+        fontFamily: GoogleFonts.merriweather().fontFamily,
+        brightness: Brightness.light,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primaryBrown,
+          brightness: Brightness.light,
+        ),
+        appBarTheme: AppBarTheme(
+          backgroundColor: AppColors.darkBrown,
+          foregroundColor: AppColors.cream,
+          elevation: 0,
+        ),
+        cardColor: AppColors.cream,
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.accentGold,
+            foregroundColor: AppColors.darkBrown,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
           ),
         ),
-        home: const SplashScreen(),
       ),
+      
+      // Dark Theme
+      darkTheme: ThemeData(
+        primaryColor: AppColors.darkPrimary,
+        scaffoldBackgroundColor: AppColors.darkBackground,
+        fontFamily: GoogleFonts.merriweather().fontFamily,
+        brightness: Brightness.dark,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.darkPrimary,
+          brightness: Brightness.dark,
+          background: AppColors.darkBackground,
+          surface: AppColors.darkSurface,
+        ),
+        appBarTheme: AppBarTheme(
+          backgroundColor: AppColors.darkSurface,
+          foregroundColor: AppColors.darkText,
+          elevation: 0,
+        ),
+        cardColor: AppColors.darkSurface,
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.darkPrimary,
+            foregroundColor: AppColors.darkBackground,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      ),
+      
+      home: const SplashScreen(),
     );
   }
 }
@@ -76,7 +125,6 @@ class MyApp extends StatelessWidget {
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
-
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -90,18 +138,14 @@ class _SplashScreenState extends State<SplashScreen> {
     _checkFirstLaunch();
   }
 
-
   Future<void> _checkFirstLaunch() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final hasName = prefs.getString('user_name');
 
-
       await Future.delayed(const Duration(seconds: 2));
 
-
       if (!mounted) return;
-
 
       if (hasName == null || hasName.isEmpty) {
         // No name saved - go to setup
@@ -113,9 +157,7 @@ class _SplashScreenState extends State<SplashScreen> {
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         await userProvider.loadUser();
 
-
         if (!mounted) return;
-
 
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -131,11 +173,12 @@ class _SplashScreenState extends State<SplashScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: AppColors.darkBrown,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.darkBrown,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -146,12 +189,12 @@ class _SplashScreenState extends State<SplashScreen> {
               color: AppColors.accentGold,
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'ShelfStory',
               style: TextStyle(
                 fontSize: 42,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: isDark ? AppColors.darkText : Colors.white,
                 letterSpacing: 2,
               ),
             ),
@@ -160,7 +203,7 @@ class _SplashScreenState extends State<SplashScreen> {
               'Your Personal Library',
               style: TextStyle(
                 fontSize: 16,
-                color: AppColors.cream,
+                color: isDark ? AppColors.darkTextSecondary : AppColors.cream,
                 fontStyle: FontStyle.italic,
               ),
             ),
