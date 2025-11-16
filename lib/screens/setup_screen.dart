@@ -2,22 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/user_provider.dart';
-import '../services/google_sign_in_service.dart';
 import '../utils/constants.dart';
 import 'home_screen.dart';
 
+
 class SetupScreen extends StatefulWidget {
   const SetupScreen({super.key});
+
 
   @override
   State<SetupScreen> createState() => _SetupScreenState();
 }
 
+
 class _SetupScreenState extends State<SetupScreen> {
   final _nameController = TextEditingController();
-  final GoogleSignInService _googleSignInService = GoogleSignInService();
   bool _isValid = false;
-  bool _isSigningIn = false;
+
 
   @override
   void dispose() {
@@ -25,18 +26,22 @@ class _SetupScreenState extends State<SetupScreen> {
     super.dispose();
   }
 
+
   Future<void> _saveName() async {
     if (_nameController.text.trim().isNotEmpty) {
       // Save to SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_name', _nameController.text.trim());
 
+
       // Update UserProvider using the proper method
       if (!mounted) return;
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       await userProvider.updateUserName(_nameController.text.trim());
 
+
       if (!mounted) return;
+
 
       // Navigate to home
       Navigator.of(context).pushReplacement(
@@ -44,42 +49,6 @@ class _SetupScreenState extends State<SetupScreen> {
       );
     }
   }
-
-Future<void> _signInWithGoogle() async {
-  setState(() => _isSigningIn = true);
-
-  try {
-    final user = await _googleSignInService.signInWithGoogle();
-
-    if (!mounted) return;
-    setState(() => _isSigningIn = false);
-
-    if (user != null) {
-      // Success! Save name and navigate
-      _nameController.text = user.displayName ?? user.email ?? 'User';
-      await _saveName();
-    } else {
-      // User cancelled
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sign-in was cancelled'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  } catch (e) {
-    if (!mounted) return;
-    setState(() => _isSigningIn = false);
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Sign-in failed: ${e.toString()}'),
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-}
-
 
 
   @override
@@ -196,90 +165,6 @@ Future<void> _signInWithGoogle() async {
                           color: Colors.white,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    // Divider with "OR"
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Divider(
-                            color: AppColors.primaryBrown.withOpacity(0.3),
-                            thickness: 1,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'OR',
-                            style: TextStyle(
-                              color: AppColors.primaryBrown.withOpacity(0.5),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Divider(
-                            color: AppColors.primaryBrown.withOpacity(0.3),
-                            thickness: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    // Google Sign-In Button
-                    OutlinedButton.icon(
-                      onPressed: _isSigningIn ? null : _signInWithGoogle,
-                      icon: _isSigningIn
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.blue,
-                                ),
-                              ),
-                            )
-                          : Image.network(
-                              'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg',
-                              height: 24,
-                              width: 24,
-                            ),
-                      label: Text(
-                        _isSigningIn
-                            ? 'Signing in...'
-                            : 'Sign in with Google',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: _isSigningIn
-                              ? Colors.grey
-                              : AppColors.darkBrown,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 14,
-                        ),
-                        side: BorderSide(
-                          color: AppColors.primaryBrown.withOpacity(0.3),
-                          width: 2,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Sign in to enable cloud backup',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.primaryBrown.withOpacity(0.6),
-                        fontStyle: FontStyle.italic,
-                      ),
-                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),

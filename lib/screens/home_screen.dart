@@ -7,27 +7,34 @@ import '../widgets/bookshelf_view.dart';
 import '../widgets/streak_tracker.dart';
 import 'add_book_screen.dart';
 import 'stats_screen.dart';
+import 'settings_screen.dart';  // ADD THIS IMPORT
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
+
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   String _filterStatus = 'all';
+
 
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
     final userName = userProvider.user?.name ?? 'Reader';
 
+
     final List<Widget> screens = [
       _buildLibraryScreen(userName),
       const StatsScreen(),
     ];
+
 
     return Scaffold(
       appBar: AppBar(
@@ -41,6 +48,20 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
+          // ADD SETTINGS BUTTON FOR BOTH TABS
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
+            },
+            tooltip: 'Settings',
+          ),
+          // EXISTING FILTER BUTTON (only on Library tab)
           if (_selectedIndex == 0) ...[
             PopupMenuButton<String>(
               icon: const Icon(Icons.filter_list),
@@ -119,6 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+
   Widget _buildLibraryScreen(String userName) {
     return Column(
       children: [
@@ -136,6 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
+
 
   String _getFilterTitle() {
     switch (_filterStatus) {

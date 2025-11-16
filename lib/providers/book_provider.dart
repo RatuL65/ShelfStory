@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class BookProvider with ChangeNotifier {
-  final Box _bookBox = Hive.box('books');
+  Box<Book> get _bookBox => Hive.box<Book>('books');
   List<Book> _books = [];
   String _filterStatus = 'all';
 
@@ -28,48 +28,46 @@ class BookProvider with ChangeNotifier {
   }
 
   void _loadBooks() {
-    _books = _bookBox.values.map((item) {
-      return Book(
-        id: item['id'],
-        title: item['title'],
-        author: item['author'],
-        genre: item['genre'],
-        price: item['price'],
-        datePurchased: DateTime.parse(item['datePurchased']),
-        coverImagePath: item['coverImagePath'],
-        readingStatus: item['readingStatus'],
-        storyRating: item['storyRating'],
-        characterRating: item['characterRating'],
-        writingStyleRating: item['writingStyleRating'],
-        emotionalImpactRating: item['emotionalImpactRating'],
-        notes: item['notes'],
-        totalPages: item['totalPages'],
-        currentPage: item['currentPage'],
-        dateStarted: item['dateStarted'] != null 
-            ? DateTime.parse(item['dateStarted']) 
-            : null,
-        dateFinished: item['dateFinished'] != null 
-            ? DateTime.parse(item['dateFinished']) 
-            : null,
-        isbn: item['isbn'],
-      );
-    }).toList();
-    notifyListeners();
+    try {
+      _books = _bookBox.values.toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading books: $e');
+      _books = [];
+    }
   }
 
   Future<void> addBook(Book book) async {
-    await _bookBox.put(book.id, book.toJson());
-    _loadBooks();
+    try {
+      await _bookBox.put(book.id, book);
+      _loadBooks();
+      debugPrint('✅ Book added: ${book.title}');
+    } catch (e) {
+      debugPrint('❌ Error adding book: $e');
+      rethrow;
+    }
   }
 
   Future<void> updateBook(Book book) async {
-    await _bookBox.put(book.id, book.toJson());
-    _loadBooks();
+    try {
+      await _bookBox.put(book.id, book);
+      _loadBooks();
+      debugPrint('✅ Book updated: ${book.title}');
+    } catch (e) {
+      debugPrint('❌ Error updating book: $e');
+      rethrow;
+    }
   }
 
   Future<void> deleteBook(String bookId) async {
-    await _bookBox.delete(bookId);
-    _loadBooks();
+    try {
+      await _bookBox.delete(bookId);
+      _loadBooks();
+      debugPrint('✅ Book deleted: $bookId');
+    } catch (e) {
+      debugPrint('❌ Error deleting book: $e');
+      rethrow;
+    }
   }
 
   // Fetch book info from Google Books API using ISBN

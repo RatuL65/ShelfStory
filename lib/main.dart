@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'providers/book_provider.dart';
 import 'providers/user_provider.dart';
@@ -11,22 +10,14 @@ import 'screens/home_screen.dart';
 import 'utils/constants.dart';
 import 'models/book.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Firebase first (needed for Google Sign-In)
-  try {
-    await Firebase.initializeApp();
-    print('✅ Firebase initialized successfully');
-  } catch (e) {
-    print('⚠️ Firebase initialization failed: $e');
-    // Continue without Firebase - app will work but Google Sign-In won't
-  }
   
   // Initialize Hive
   await Hive.initFlutter();
   
-  // Register Book adapter (CRITICAL - this was missing!)
+  // Register Book adapter
   Hive.registerAdapter(BookAdapter());
   
   // Open boxes with proper types
@@ -37,8 +28,10 @@ void main() async {
   runApp(const MyApp());
 }
 
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
 
   @override
   Widget build(BuildContext context) {
@@ -80,12 +73,15 @@ class MyApp extends StatelessWidget {
   }
 }
 
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
+
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
+
 
 class _SplashScreenState extends State<SplashScreen> {
   @override
@@ -94,14 +90,18 @@ class _SplashScreenState extends State<SplashScreen> {
     _checkFirstLaunch();
   }
 
+
   Future<void> _checkFirstLaunch() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final hasName = prefs.getString('user_name');
 
+
       await Future.delayed(const Duration(seconds: 2));
 
+
       if (!mounted) return;
+
 
       if (hasName == null || hasName.isEmpty) {
         // No name saved - go to setup
@@ -113,7 +113,9 @@ class _SplashScreenState extends State<SplashScreen> {
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         await userProvider.loadUser();
 
+
         if (!mounted) return;
+
 
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -128,6 +130,7 @@ class _SplashScreenState extends State<SplashScreen> {
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +165,6 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
             const SizedBox(height: 40),
-            // Add loading indicator
             CircularProgressIndicator(
               color: AppColors.accentGold,
             ),
