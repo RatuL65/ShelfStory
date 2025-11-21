@@ -3,17 +3,22 @@ import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'providers/book_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/setup_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/phone_auth_screen.dart';
 import 'utils/constants.dart';
 import 'models/book.dart';
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase first
+  await Firebase.initializeApp();
   
   // Initialize Hive
   await Hive.initFlutter();
@@ -28,7 +33,6 @@ void main() async {
   
   runApp(const MyApp());
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -45,7 +49,6 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
 
 class MyAppWithTheme extends StatelessWidget {
   const MyAppWithTheme({super.key});
@@ -122,7 +125,6 @@ class MyAppWithTheme extends StatelessWidget {
   }
 }
 
-
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -130,45 +132,55 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-
 class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkFirstLaunch();
+    _checkAuthStatus();
   }
 
-  Future<void> _checkFirstLaunch() async {
+  Future<void> _checkAuthStatus() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final hasName = prefs.getString('user_name');
-
       await Future.delayed(const Duration(seconds: 2));
 
       if (!mounted) return;
 
-      if (hasName == null || hasName.isEmpty) {
-        // No name saved - go to setup
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const SetupScreen()),
-        );
+      // Check if user is authenticated with Firebase
+      final User? firebaseUser = FirebaseAuth.instance.currentUser;
+
+      if (firebaseUser != null) {
+        // User is authenticated - check if they have completed setup
+        final prefs = await SharedPreferences.getInstance();
+        final hasName = prefs.getString('user_name');
+
+        if (hasName == null || hasName.isEmpty) {
+          // Authenticated but no name - go to setup
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const SetupScreen()),
+          );
+        } else {
+          // Authenticated and setup complete - load data and go to home
+          final userProvider = Provider.of<UserProvider>(context, listen: false);
+          await userProvider.loadUser();
+
+          if (!mounted) return;
+
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+        }
       } else {
-        // Name exists - load user data and go to home
-        final userProvider = Provider.of<UserProvider>(context, listen: false);
-        await userProvider.loadUser();
-
-        if (!mounted) return;
-
+        // No Firebase user - go to phone authentication
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => const PhoneAuthScreen()),
         );
       }
     } catch (e) {
       print('Error during initialization: $e');
-      // On error, go to setup screen
       if (!mounted) return;
+      // On error, go to phone auth screen
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const SetupScreen()),
+        MaterialPageRoute(builder: (_) => const PhoneAuthScreen()),
       );
     }
   }
