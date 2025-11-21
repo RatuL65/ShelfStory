@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.shelf_story"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.shelf_story"
-        minSdk = 23  // CHANGED from 21 to 23
+        minSdk = flutter.minSdkVersion  // CHANGED from 21 to 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
