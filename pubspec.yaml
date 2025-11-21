@@ -1,4 +1,4 @@
-name: ShelfStory
+name: shelf_story
 description: A vintage-style personal book tracking app
 publish_to: 'none'
 version: 1.5.0+2
@@ -25,8 +25,8 @@ dependencies:
   # Barcode Scanner
   mobile_scanner: ^3.5.5
   
-  # HTTP for Google Books API
-  http: ^1.1.2
+  # HTTP for APIs
+  http: ^1.2.0
   
   # CSV Export
   csv: ^5.1.1
@@ -42,10 +42,17 @@ dependencies:
 
   # Icons
   cupertino_icons: ^1.0.6
-  firebase_core: ^3.15.2
-  firebase_auth: ^5.7.0
-  cloud_firestore: ^5.6.12
-  firebase_storage: ^12.4.10
+  
+  # Firebase
+  # Firebase - Use compatible versions
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+  firebase_storage: ^12.3.4
+  google_sign_in: ^6.2.1
+
+  # Charts
+  fl_chart: ^0.68.0
 
 dev_dependencies:
   flutter_test:
@@ -54,21 +61,16 @@ dev_dependencies:
   hive_generator: ^2.0.1
   build_runner: ^2.4.7
   flutter_launcher_icons: ^0.13.1
-  google_sign_in: ^6.2.1
-  fl_chart: ^0.68.0 
-  http: ^1.2.0  # For Google Drive API
 
 flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/images/app_icon.png"
-  adaptive_icon_background: "#5D2E0F"  # Dark brown color
+  adaptive_icon_background: "#5D2E0F"
   adaptive_icon_foreground: "assets/images/app_icon.png"
-
 
 flutter:
   uses-material-design: true
 
   assets:
     - assets/images/
-

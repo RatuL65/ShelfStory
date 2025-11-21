@@ -10,7 +10,7 @@ import 'providers/user_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/setup_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/phone_auth_screen.dart';
+import 'screens/google_signin_screen.dart'; // Changed from phone_auth_screen
 import 'utils/constants.dart';
 import 'models/book.dart';
 
@@ -149,38 +149,27 @@ class _SplashScreenState extends State<SplashScreen> {
       final User? firebaseUser = FirebaseAuth.instance.currentUser;
 
       if (firebaseUser != null) {
-        // User is authenticated - check if they have completed setup
-        final prefs = await SharedPreferences.getInstance();
-        final hasName = prefs.getString('user_name');
+        // User is authenticated - load data and go to home
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        await userProvider.loadUser();
 
-        if (hasName == null || hasName.isEmpty) {
-          // Authenticated but no name - go to setup
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const SetupScreen()),
-          );
-        } else {
-          // Authenticated and setup complete - load data and go to home
-          final userProvider = Provider.of<UserProvider>(context, listen: false);
-          await userProvider.loadUser();
+        if (!mounted) return;
 
-          if (!mounted) return;
-
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          );
-        }
-      } else {
-        // No Firebase user - go to phone authentication
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const PhoneAuthScreen()),
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      } else {
+        // No Firebase user - go to Google sign-in screen
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const GoogleSignInScreen()),
         );
       }
     } catch (e) {
       print('Error during initialization: $e');
       if (!mounted) return;
-      // On error, go to phone auth screen
+      // On error, go to Google sign-in screen
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const PhoneAuthScreen()),
+        MaterialPageRoute(builder: (_) => const GoogleSignInScreen()),
       );
     }
   }
