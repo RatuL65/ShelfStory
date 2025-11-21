@@ -29,31 +29,40 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
 
-      # Step 4: Decode google-services.json (ADDED - Must come before pub get)
+      # Step 4: Create .android directory
+      - name: Create Android debug directory
+        run: mkdir -p /home/runner/.android
+
+      # Step 5: Decode debug keystore
+      - name: Decode debug keystore
+        run: |
+          echo "${{ secrets.DEBUG_KEYSTORE }}" | base64 --decode > /home/runner/.android/debug.keystore
+
+      # Step 6: Decode google-services.json
       - name: Decode google-services.json
         run: |
           echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > android/app/google-services.json
 
-      # Step 5: Install dependencies
+      # Step 7: Install dependencies
       - name: Install dependencies
         run: flutter pub get
 
-      # Step 6: Generate Hive files
+      # Step 8: Generate Hive files
       - name: Generate Hive adapter files
         run: flutter packages pub run build_runner build --delete-conflicting-outputs
 
-      # Step 7: Build APK
+      # Step 9: Build APK
       - name: Build APK
         run: flutter build apk --release
 
-      # Step 8: Get version from pubspec.yaml
+      # Step 10: Get version from pubspec.yaml
       - name: Get version
         id: version
         run: |
           VERSION=$(grep 'version:' pubspec.yaml | cut -d ' ' -f 2 | tr -d '\r')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      # Step 9: Create Release and Upload APK
+      # Step 11: Create Release and Upload APK
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
@@ -61,30 +70,30 @@ jobs:
           tag: v${{ steps.version.outputs.version }}-build-${{ github.run_number }}
           name: ShelfStory v${{ steps.version.outputs.version }} (Build ${{ github.run_number }})
           body: |
-            ## 📚 ShelfStory - Phone Authentication & Cloud Ready
+            ## 📚 ShelfStory - Google Sign-In & Cloud Ready
             
             **Version:** ${{ steps.version.outputs.version }}
             **Build Number:** ${{ github.run_number }}
             **Commit:** ${{ github.sha }}
             
             ### ✨ What's New in This Version
-            - ✅ Firebase Phone Authentication enabled
+            - ✅ Google Sign-In authentication enabled
             - ✅ Cloud-ready infrastructure with Firestore
             - ✅ Updated Android SDK to 36
-            - ✅ Secure OTP-based login
+            - ✅ Secure authentication flow
             - 🔧 Bug fixes and improvements
             
             ### 📥 Download & Install
             1. Download `app-release.apk` below
             2. Enable "Install from Unknown Sources" in phone settings
             3. Open APK and install
-            4. Sign in with your phone number
+            4. Sign in with your Google account
             
             ### 🎯 Features
             - Track books with vintage UI
             - Barcode scanning for ISBN
             - Reading statistics and streaks
-            - Phone number authentication
+            - Google authentication
             - Export library as CSV
             
             ### 🔧 Built with GitHub Actions
