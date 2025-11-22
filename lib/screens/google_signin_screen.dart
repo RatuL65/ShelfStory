@@ -16,7 +16,9 @@ class GoogleSignInScreen extends StatefulWidget {
 }
 
 class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId: '697134409500-k9obg64qbjla08o25up3ffej2s48l0bv.apps.googleusercontent.com',
+  );
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = false;
 
@@ -177,13 +179,13 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: Colors.black87,
                           ),
                         )
-                      : Image.asset(
-                          'assets/google_logo.png', // Add Google logo
-                          height: 24,
-                          width: 24,
+                      : const Icon(
+                          Icons.login,
+                          size: 24,
+                          color: Colors.black87,
                         ),
                   label: Text(
                     _isLoading ? 'Signing in...' : 'Continue with Google',
