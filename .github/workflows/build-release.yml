@@ -38,6 +38,11 @@ jobs:
         run: |
           echo "${{ secrets.DEBUG_KEYSTORE }}" | base64 --decode > /home/runner/.android/debug.keystore
 
+      # Step 5.5: Print keystore SHA-1 (DEBUG)
+      - name: Print keystore SHA-1
+        run: |
+          keytool -list -v -keystore /home/runner/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
+
       # Step 6: Decode google-services.json
       - name: Decode google-services.json
         run: |
