@@ -17,6 +17,7 @@ class GoogleSignInScreen extends StatefulWidget {
 
 class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
     serverClientId: '697134409500-k9obg64qbjla08o25up3ffej2s48l0bv.apps.googleusercontent.com',
   );
   final FirebaseAuth _auth = FirebaseAuth.instance;
