@@ -21,11 +21,21 @@ android {
 
     defaultConfig {
         applicationId = "com.example.shelf_story"
-        minSdk = 23 // CHANGED from 21 to 23
+        minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
+    }
+
+    // ADD THIS SECTION
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("/home/runner/.android/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
