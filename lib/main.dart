@@ -1,36 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import 'providers/book_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/theme_provider.dart';
-import 'screens/setup_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/google_signin_screen.dart'; // Contains LoginScreen
+import 'screens/email_auth_screen.dart';
 import 'utils/constants.dart';
 import 'models/book.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Firebase first
   await Firebase.initializeApp();
-  
+
   // Initialize Hive
   await Hive.initFlutter();
-  
+
   // Register Book adapter
   Hive.registerAdapter(BookAdapter());
-  
+
   // Open boxes with proper types
   await Hive.openBox<Book>('books');
   await Hive.openBox('user');
   await Hive.openBox('settings');
-  
+
   runApp(const MyApp());
 }
 
@@ -56,12 +55,12 @@ class MyAppWithTheme extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    
+
     return MaterialApp(
       title: 'ShelfStory',
       debugShowCheckedModeBanner: false,
       themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      
+
       // Light Theme
       theme: ThemeData(
         primaryColor: AppColors.primaryBrown,
@@ -89,7 +88,7 @@ class MyAppWithTheme extends StatelessWidget {
           ),
         ),
       ),
-      
+
       // Dark Theme
       darkTheme: ThemeData(
         primaryColor: AppColors.darkPrimary,
@@ -99,7 +98,6 @@ class MyAppWithTheme extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.darkPrimary,
           brightness: Brightness.dark,
-          background: AppColors.darkBackground,
           surface: AppColors.darkSurface,
         ),
         appBarTheme: AppBarTheme(
@@ -119,7 +117,7 @@ class MyAppWithTheme extends StatelessWidget {
           ),
         ),
       ),
-      
+
       home: const SplashScreen(),
     );
   }
@@ -159,17 +157,17 @@ class _SplashScreenState extends State<SplashScreen> {
           MaterialPageRoute(builder: (_) => const HomeScreen()),
         );
       } else {
-        // No Firebase user - go to Google sign-in screen
+        // No Firebase user - go to auth screen (email + Google + phone)
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          MaterialPageRoute(builder: (_) => const EmailAuthScreen()),
         );
       }
     } catch (e) {
       print('Error during initialization: $e');
       if (!mounted) return;
-      // On error, go to Google sign-in screen
+      // On error, go to auth screen
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(builder: (_) => const EmailAuthScreen()),
       );
     }
   }
@@ -177,7 +175,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.darkBrown,
       body: Center(
