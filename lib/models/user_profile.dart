@@ -3,6 +3,7 @@ class UserProfile {
   final String? username;
   final String? bio;
   final String? photoUrl;
+  final DateTime? dob; // <-- Add this line
   final DateTime lastReadingDate;
   final int readingStreak;
   final int longestStreak;
@@ -15,6 +16,7 @@ class UserProfile {
     this.username,
     this.bio,
     this.photoUrl,
+    this.dob, // <-- Add this line
     DateTime? lastReadingDate,
     this.readingStreak = 1,
     this.longestStreak = 1,
@@ -28,6 +30,7 @@ class UserProfile {
     String? username,
     String? bio,
     String? photoUrl,
+    DateTime? dob, // <-- Add this line
     DateTime? lastReadingDate,
     int? readingStreak,
     int? longestStreak,
@@ -40,6 +43,7 @@ class UserProfile {
       username: username ?? this.username,
       bio: bio ?? this.bio,
       photoUrl: photoUrl ?? this.photoUrl,
+      dob: dob ?? this.dob, // <-- Add this line
       lastReadingDate: lastReadingDate ?? this.lastReadingDate,
       readingStreak: readingStreak ?? this.readingStreak,
       longestStreak: longestStreak ?? this.longestStreak,
@@ -55,6 +59,7 @@ class UserProfile {
       'username': username,
       'bio': bio,
       'photoUrl': photoUrl,
+      'dob': dob?.toIso8601String(), // <-- Add this line
       'lastReadingDate': lastReadingDate.toIso8601String(),
       'readingStreak': readingStreak,
       'longestStreak': longestStreak,
@@ -70,6 +75,9 @@ class UserProfile {
       username: json['username'],
       bio: json['bio'],
       photoUrl: json['photoUrl'],
+      dob: (json['dob'] != null && json['dob'] is String && json['dob'].isNotEmpty)
+          ? DateTime.tryParse(json['dob'])
+          : null, // <-- Parse safely
       lastReadingDate: DateTime.tryParse(json['lastReadingDate'] ?? '') ??
           DateTime.now(),
       readingStreak: json['readingStreak'] ?? 1,

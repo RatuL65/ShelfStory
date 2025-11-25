@@ -18,6 +18,8 @@ class _AccountScreenState extends State<AccountScreen> {
   final _usernameController = TextEditingController();
   final _displayNameController = TextEditingController();
   final _bioController = TextEditingController();
+  final _photoController = TextEditingController();
+  DateTime? _dob;
   bool _isSaving = false;
 
   @override
@@ -29,6 +31,8 @@ class _AccountScreenState extends State<AccountScreen> {
     _usernameController.text = appUser?.username ?? '';
     _displayNameController.text = appUser?.name ?? '';
     _bioController.text = appUser?.bio ?? '';
+    _photoController.text = appUser?.photoUrl ?? '';
+    _dob = appUser?.dob;
   }
 
   @override
@@ -36,6 +40,7 @@ class _AccountScreenState extends State<AccountScreen> {
     _usernameController.dispose();
     _displayNameController.dispose();
     _bioController.dispose();
+    _photoController.dispose();
     super.dispose();
   }
 
@@ -51,6 +56,8 @@ class _AccountScreenState extends State<AccountScreen> {
         username: _usernameController.text,
         displayName: _displayNameController.text,
         bio: _bioController.text,
+        dob: _dob,
+        photoUrl: _photoController.text,
       );
 
       if (!mounted) return;
@@ -106,8 +113,9 @@ class _AccountScreenState extends State<AccountScreen> {
       appBar: AppBar(
         title: const Text('Your Account'),
       ),
-      backgroundColor:
-          isDark ? AppColors.darkBackground : AppColors.backgroundCream,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.backgroundCream,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -116,6 +124,21 @@ class _AccountScreenState extends State<AccountScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (_photoController.text.isNotEmpty)
+                  Center(
+                    child: ClipOval(
+                      child: Image.network(
+                        _photoController.text,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(Icons.error),
+                      ),
+                    ),
+                  ),
+                if (_photoController.text.isNotEmpty)
+                  const SizedBox(height: 8),
                 Center(
                   child: Icon(
                     Icons.person,
@@ -208,6 +231,46 @@ class _AccountScreenState extends State<AccountScreen> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: 16),
+                // DOB picker
+                GestureDetector(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _dob ?? DateTime(2000, 1, 1),
+                      firstDate: DateTime(1900, 1, 1),
+                      lastDate: DateTime(DateTime.now().year - 10, 12, 31),
+                    );
+                    if (picked != null) setState(() => _dob = picked);
+                  },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Date of Birth',
+                      border: OutlineInputBorder(),
+                    ),
+                    child: Text(
+                      _dob == null
+                          ? 'Tap to select'
+                          : '${_dob!.year}-${_dob!.month.toString().padLeft(2, '0')}-${_dob!.day.toString().padLeft(2, '0')}',
+                      style: TextStyle(
+                        color: (_dob == null)
+                            ? Colors.grey
+                            : (isDark
+                                ? AppColors.cream
+                                : AppColors.darkBrown),
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _photoController,
+                  decoration: const InputDecoration(
+                    labelText: 'Profile Picture URL (optional)',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(

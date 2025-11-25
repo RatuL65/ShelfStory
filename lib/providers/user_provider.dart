@@ -12,12 +12,16 @@ class UserProvider with ChangeNotifier {
 
   UserProfile? get user => _user;
 
+  // Helper for Firestore -> local user model
   UserProfile _fromFirestore(Map<String, dynamic> data, String fallbackName) {
     return UserProfile(
       name: data['displayName'] ?? fallbackName,
       username: data['username'],
       bio: data['bio'],
       photoUrl: data['photoUrl'],
+      dob: data['dob'] != null
+          ? DateTime.tryParse(data['dob']) ?? DateTime(2000)
+          : null,
       lastReadingDate: _user?.lastReadingDate,
       readingStreak: _user?.readingStreak ?? 1,
       longestStreak: _user?.longestStreak ?? 1,
@@ -27,59 +31,59 @@ class UserProvider with ChangeNotifier {
     );
   }
 
-Future<void> loadUser() async {
-  final prefs = await SharedPreferences.getInstance();
-  final fallbackName = prefs.getString('user_name') ?? 'Reader';
+  Future<void> loadUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final fallbackName = prefs.getString('user_name') ?? 'Reader';
 
-  // 1) Always load local user first (Hive)
-  final userData = _userBox.get('profile');
-  if (userData != null) {
-    _user = UserProfile.fromJson(Map<String, dynamic>.from(userData));
-  } else {
-    _user = UserProfile(name: fallbackName);
-    await saveUser();
-  }
+    // 1. Local data via Hive
+    final userData = _userBox.get('profile');
+    if (userData != null) {
+      _user = UserProfile.fromJson(Map<String, dynamic>.from(userData));
+    } else {
+      _user = UserProfile(name: fallbackName);
+      await saveUser();
+    }
 
-  // 2) Try Firestore, but NEVER fail login if it breaks
-  try {
-    final firebaseUser = FirebaseAuth.instance.currentUser;
-    if (firebaseUser != null) {
-      final uid = firebaseUser.uid;
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
-
-      if (doc.exists) {
-        final data = doc.data()!;
-        _user = _fromFirestore(data, _user!.name);
-      } else {
-        final data = {
-          'email': firebaseUser.email,
-          'displayName': _user!.name,
-          'username': _user!.username,
-          'bio': _user!.bio,
-          'photoUrl': _user!.photoUrl,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        };
-        await FirebaseFirestore.instance
+    // 2. Firestore sync if logged in
+    try {
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        final uid = firebaseUser.uid;
+        final doc = await FirebaseFirestore.instance
             .collection('users')
             .doc(uid)
-            .set(data);
+            .get();
+
+        if (doc.exists) {
+          final data = doc.data()!;
+          _user = _fromFirestore(data, _user!.name);
+        } else {
+          final data = {
+            'email': firebaseUser.email,
+            'displayName': _user!.name,
+            'username': _user!.username,
+            'bio': _user!.bio,
+            'photoUrl': _user!.photoUrl,
+            'dob': _user?.dob?.toIso8601String(),
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          };
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .set(data);
+        }
       }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Firestore loadUser error: $e');
+      }
+      // proceed with local data even if Firestore is unavailable
     }
-  } catch (e) {
-    if (kDebugMode) {
-      print('Firestore loadUser error (ignored): $e');
-    }
-    // do nothing – keep local _user
+
+    _updateStreak();
+    notifyListeners();
   }
-
-  _updateStreak();
-  notifyListeners();
-}
-
 
   Future<void> saveUser() async {
     if (_user != null) {
@@ -164,78 +168,88 @@ Future<void> loadUser() async {
     notifyListeners();
   }
 
+  // Main profile update -- supports onboarding and later editing
   Future<void> updateProfile({
     required String username,
     required String displayName,
     required String bio,
+    DateTime? dob,
+    String? photoUrl,
   }) async {
     final firebaseUser = FirebaseAuth.instance.currentUser;
     final newUsername = username.trim().toLowerCase();
     final newDisplayName = displayName.trim();
     final newBio = bio.trim();
+    final newPhotoUrl = photoUrl?.trim();
 
-    if (firebaseUser == null) {
-      // Local only
-      _user = (_user ?? UserProfile(name: newDisplayName)).copyWith(
-        name: newDisplayName,
-        username: newUsername,
-        bio: newBio,
-      );
-      await saveUser();
-      notifyListeners();
-      return;
-    }
-
-    final uid = firebaseUser.uid;
-    final db = FirebaseFirestore.instance;
-
-    await db.runTransaction((txn) async {
-      final usernameRef = db.collection('usernames').doc(newUsername);
-      final userRef = db.collection('users').doc(uid);
-
-      final usernameSnap = await txn.get(usernameRef);
-      final userSnap = await txn.get(userRef);
-      final existing = userSnap.data() ?? {};
-
-      final oldUsername = (existing['username'] ?? '').toString();
-
-      if (usernameSnap.exists && usernameSnap.data()?['uid'] != uid) {
-        throw Exception('username-taken');
-      }
-
-      if (oldUsername.isNotEmpty && oldUsername != newUsername) {
-        final oldRef = db.collection('usernames').doc(oldUsername);
-        txn.delete(oldRef);
-      }
-
-      txn.set(usernameRef, {'uid': uid});
-
-      txn.set(
-        userRef,
-        {
-          'email': firebaseUser.email,
-          'displayName': newDisplayName,
-          'username': newUsername,
-          'bio': newBio,
-          'photoUrl': existing['photoUrl'],
-          'createdAt':
-              existing['createdAt'] ?? FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
-    });
-
-    if (newDisplayName.isNotEmpty) {
-      await firebaseUser.updateDisplayName(newDisplayName);
-    }
-
+    // Update local model
     _user = (_user ?? UserProfile(name: newDisplayName)).copyWith(
       name: newDisplayName,
       username: newUsername,
       bio: newBio,
+      photoUrl: newPhotoUrl,
+      dob: dob,
     );
     await saveUser();
+
+    if (firebaseUser == null) {
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final uid = firebaseUser.uid;
+      final db = FirebaseFirestore.instance;
+
+      await db.runTransaction((txn) async {
+        final usernameRef = db.collection('usernames').doc(newUsername);
+        final userRef = db.collection('users').doc(uid);
+
+        final usernameSnap = await txn.get(usernameRef);
+        final userSnap = await txn.get(userRef);
+        final existing = userSnap.data() ?? {};
+        final oldUsername = (existing['username'] ?? '').toString();
+
+        if (usernameSnap.exists && usernameSnap.data()?['uid'] != uid) {
+          throw Exception('username-taken');
+        }
+
+        if (oldUsername.isNotEmpty && oldUsername != newUsername) {
+          final oldRef = db.collection('usernames').doc(oldUsername);
+          txn.delete(oldRef);
+        }
+
+        txn.set(usernameRef, {'uid': uid});
+
+        txn.set(
+          userRef,
+          {
+            'email': firebaseUser.email,
+            'displayName': newDisplayName,
+            'username': newUsername,
+            'bio': newBio,
+            'photoUrl': newPhotoUrl,
+            'dob': dob?.toIso8601String(),
+            'createdAt':
+                existing['createdAt'] ?? FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+      });
+
+      if (newDisplayName.isNotEmpty) {
+        await firebaseUser.updateDisplayName(newDisplayName);
+      }
+    } catch (e) {
+      if (e.toString().contains('username-taken')) {
+        throw e;
+      }
+      if (kDebugMode) {
+        print('updateProfile error: $e');
+      }
+    }
+
     notifyListeners();
   }
 

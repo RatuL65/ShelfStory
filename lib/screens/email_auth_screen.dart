@@ -6,6 +6,7 @@ import '../utils/constants.dart';
 import '../providers/user_provider.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
+import 'account_setup_screen.dart';  // <-- Add this!
 
 class EmailAuthScreen extends StatefulWidget {
   const EmailAuthScreen({super.key});
@@ -18,8 +19,12 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _isLogin = true;
   bool _isLoading = false;
+
+  bool _showPassword = false;
+  bool _showConfirm = false;
 
   final AuthService _authService = AuthService();
 
@@ -27,54 +32,60 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-Future<void> _submit() async {
-  if (!_formKey.currentState!.validate()) return;
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
 
-  setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
 
-  try {
-    User? user;
-    if (_isLogin) {
-      user = await _authService.signInWithEmail(
-        _emailController.text,
-        _passwordController.text,
-      );
-    } else {
-      user = await _authService.signUpWithEmail(
-        _emailController.text,
-        _passwordController.text,
-      );
-    }
+    try {
+      User? user;
+      if (_isLogin) {
+        user = await _authService.signInWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+      } else {
+        user = await _authService.signUpWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+      }
 
-    if (user == null) {
-      throw FirebaseAuthException(
-        code: 'user-null',
-        message: 'Authentication failed. Please try again.',
-      );
-    }
+      if (user == null) {
+        throw FirebaseAuthException(
+          code: 'user-null',
+          message: 'Authentication failed. Please try again.',
+        );
+      }
 
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    await userProvider.loadUser();   // now safe even if Firestore is down
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      await userProvider.loadUser();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-    );
-  } on FirebaseAuthException catch (e) {
-    _showError(e.message ?? 'Authentication failed.');
-  } catch (e) {
-    _showError('An error occurred: $e');
-  } finally {
-    if (mounted) {
-      setState(() => _isLoading = false);
+      if (_isLogin) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const AccountSetupScreen()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      _showError(e.message ?? 'Authentication failed.');
+    } catch (e) {
+      _showError('An error occurred: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
-}
-
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -140,10 +151,20 @@ Future<void> _submit() async {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
+                    obscureText: !_showPassword,
+                    decoration: InputDecoration(
                       labelText: 'Password',
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _showPassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() => _showPassword = !_showPassword);
+                        },
+                      ),
                     ),
                     validator: (value) {
                       if (value == null || value.length < 6) {
@@ -152,6 +173,36 @@ Future<void> _submit() async {
                       return null;
                     },
                   ),
+                  if (!_isLogin) ...[
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      obscureText: !_showConfirm,
+                      decoration: InputDecoration(
+                        labelText: 'Confirm Password',
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _showConfirm
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          onPressed: () {
+                            setState(() => _showConfirm = !_showConfirm);
+                          },
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please retype your password';
+                        }
+                        if (value != _passwordController.text) {
+                          return 'Passwords do not match';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: _isLoading ? null : _submit,
@@ -189,13 +240,6 @@ Future<void> _submit() async {
                           ? "Don't have an account? Sign up"
                           : 'Already have an account? Log in',
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Divider(),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'More sign-in options coming soon',
-                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
