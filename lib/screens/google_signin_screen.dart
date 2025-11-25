@@ -19,7 +19,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
-    serverClientId: '697134409500-k9obg64qbjla08o25up3ffej2s48l0bv.apps.googleusercontent.com',
+    serverClientId: '697134409500-vdf21a3q4flodus179nlg5i5cipnn85t.apps.googleusercontent.com',
   );
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = false;
