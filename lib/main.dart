@@ -10,7 +10,7 @@ import 'providers/user_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/setup_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/google_signin_screen.dart'; // Changed from phone_auth_screen
+import 'screens/google_signin_screen.dart'; // Contains LoginScreen
 import 'utils/constants.dart';
 import 'models/book.dart';
 
@@ -161,7 +161,7 @@ class _SplashScreenState extends State<SplashScreen> {
       } else {
         // No Firebase user - go to Google sign-in screen
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const GoogleSignInScreen()),
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
         );
       }
     } catch (e) {
@@ -169,7 +169,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (!mounted) return;
       // On error, go to Google sign-in screen
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const GoogleSignInScreen()),
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
     }
   }

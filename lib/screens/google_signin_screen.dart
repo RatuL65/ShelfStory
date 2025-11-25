@@ -7,15 +7,16 @@ import '../utils/constants.dart';
 import '../providers/user_provider.dart';
 import 'setup_screen.dart';
 import 'home_screen.dart';
+import 'phone_auth_screen.dart';
 
-class GoogleSignInScreen extends StatefulWidget {
-  const GoogleSignInScreen({super.key});
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
   @override
-  State<GoogleSignInScreen> createState() => _GoogleSignInScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
+class _LoginScreenState extends State<LoginScreen> {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
     serverClientId: '697134409500-k9obg64qbjla08o25up3ffej2s48l0bv.apps.googleusercontent.com',
@@ -95,6 +96,12 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
       setState(() => _isLoading = false);
       _showError('An error occurred: $e');
     }
+  }
+
+  void _navigateToPhoneAuth() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const PhoneAuthScreen()),
+    );
   }
 
   void _showError(String message) {
@@ -204,6 +211,36 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
                       side: BorderSide(
                         color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
                       ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Phone Auth Button
+                OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _navigateToPhoneAuth,
+                  icon: Icon(
+                    Icons.phone_android,
+                    size: 24,
+                    color: isDark ? Colors.white : AppColors.darkBrown,
+                  ),
+                  label: Text(
+                    'Continue with Phone Number',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppColors.darkBrown,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    side: BorderSide(
+                      color: isDark ? Colors.grey[700]! : AppColors.darkBrown,
+                      width: 1.5,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),

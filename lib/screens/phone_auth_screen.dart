@@ -141,6 +141,17 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
     
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.backgroundCream,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back,
+            color: isDark ? AppColors.darkText : AppColors.darkBrown,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

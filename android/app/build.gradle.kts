@@ -29,14 +29,15 @@ android {
     }
 
     // ADD THIS SECTION
-    signingConfigs {
-        getByName("debug") {
-            storeFile = file("/home/runner/.android/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
-        }
-    }
+    // Signing config removed to use default debug keystore
+    // signingConfigs {
+    //     getByName("debug") {
+    //         storeFile = file("/home/runner/.android/debug.keystore")
+    //         storePassword = "android"
+    //         keyAlias = "androiddebugkey"
+    //         keyPassword = "android"
+    //     }
+    // }
 
     buildTypes {
         release {
