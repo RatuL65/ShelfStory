@@ -9,16 +9,14 @@ import 'add_book_screen.dart';
 import 'stats_screen.dart';
 import 'settings_screen.dart';
 import '../widgets/reading_goal_widget.dart';
-
+import 'account_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
-
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
@@ -33,18 +31,15 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
     final userName = userProvider.user?.name ?? 'Reader';
 
-
     final List<Widget> screens = [
       _buildLibraryScreen(userName),
       const StatsScreen(),
     ];
-
 
     return Scaffold(
       appBar: AppBar(
@@ -65,8 +60,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               )
             : Text(
-                _selectedIndex == 0 
-                    ? "$userName's Bookshelf" 
+                _selectedIndex == 0
+                    ? "$userName's Bookshelf"
                     : 'Reading Stats',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
@@ -90,6 +85,19 @@ class _HomeScreenState extends State<HomeScreen> {
               tooltip: _isSearching ? 'Close Search' : 'Search Books',
             ),
           ],
+          // Account icon (both tabs)
+          IconButton(
+            icon: const Icon(Icons.person),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AccountScreen(),
+                ),
+              );
+            },
+            tooltip: 'Your Account',
+          ),
           // Settings icon (both tabs)
           IconButton(
             icon: const Icon(Icons.settings),
@@ -114,20 +122,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 Provider.of<BookProvider>(context, listen: false)
                     .setFilter(value);
               },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
+              itemBuilder: (context) => const [
+                PopupMenuItem(
                   value: 'all',
                   child: Text('All Books'),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'notStarted',
                   child: Text("Haven't Read"),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'reading',
                   child: Text('Currently Reading'),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'finished',
                   child: Text('Finished'),
                 ),
@@ -188,29 +196,26 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
-Widget _buildLibraryScreen(String userName) {
-  return Column(
-    children: [
-      const StreakTracker(),
-      const ReadingGoalWidget(isCompact: true),  // ADD THIS LINE
-      Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Text(
-          _isSearching && _searchQuery.isNotEmpty
-              ? '🔍 Search: "$_searchQuery"'
-              : _getFilterTitle(),
-          style: AppTextStyles.subheading(context),
+  Widget _buildLibraryScreen(String userName) {
+    return Column(
+      children: [
+        const StreakTracker(),
+        const ReadingGoalWidget(isCompact: true),
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            _isSearching && _searchQuery.isNotEmpty
+                ? '🔍 Search: "$_searchQuery"'
+                : _getFilterTitle(),
+            style: AppTextStyles.subheading(context),
+          ),
         ),
-      ),
-      Expanded(
-        child: BookshelfView(searchQuery: _searchQuery),
-      ),
-    ],
-  );
-}
-
-
+        Expanded(
+          child: BookshelfView(searchQuery: _searchQuery),
+        ),
+      ],
+    );
+  }
 
   String _getFilterTitle() {
     switch (_filterStatus) {
