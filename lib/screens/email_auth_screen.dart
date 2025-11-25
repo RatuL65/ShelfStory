@@ -30,51 +30,51 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+Future<void> _submit() async {
+  if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
 
-    try {
-      User? user;
-      if (_isLogin) {
-        user = await _authService.signInWithEmail(
-          _emailController.text,
-          _passwordController.text,
-        );
-      } else {
-        user = await _authService.signUpWithEmail(
-          _emailController.text,
-          _passwordController.text,
-        );
-      }
-
-      if (user == null) {
-        throw FirebaseAuthException(
-          code: 'user-null',
-          message: 'Authentication failed. Please try again.',
-        );
-      }
-
-      // Load user data (same pattern as other auth flows)
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      await userProvider.loadUser();
-
-      if (!mounted) return;
-
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+  try {
+    User? user;
+    if (_isLogin) {
+      user = await _authService.signInWithEmail(
+        _emailController.text,
+        _passwordController.text,
       );
-    } on FirebaseAuthException catch (e) {
-      _showError(e.message ?? 'Authentication failed.');
-    } catch (e) {
-      _showError('An error occurred: $e');
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    } else {
+      user = await _authService.signUpWithEmail(
+        _emailController.text,
+        _passwordController.text,
+      );
+    }
+
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'user-null',
+        message: 'Authentication failed. Please try again.',
+      );
+    }
+
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    await userProvider.loadUser();   // now safe even if Firestore is down
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+    );
+  } on FirebaseAuthException catch (e) {
+    _showError(e.message ?? 'Authentication failed.');
+  } catch (e) {
+    _showError('An error occurred: $e');
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
+
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(

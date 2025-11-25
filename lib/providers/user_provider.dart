@@ -27,20 +27,21 @@ class UserProvider with ChangeNotifier {
     );
   }
 
-  Future<void> loadUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final fallbackName = prefs.getString('user_name') ?? 'Reader';
+Future<void> loadUser() async {
+  final prefs = await SharedPreferences.getInstance();
+  final fallbackName = prefs.getString('user_name') ?? 'Reader';
 
-    // Load local profile from Hive
-    final userData = _userBox.get('profile');
-    if (userData != null) {
-      _user = UserProfile.fromJson(Map<String, dynamic>.from(userData));
-    } else {
-      _user = UserProfile(name: fallbackName);
-      await saveUser();
-    }
+  // 1) Always load local user first (Hive)
+  final userData = _userBox.get('profile');
+  if (userData != null) {
+    _user = UserProfile.fromJson(Map<String, dynamic>.from(userData));
+  } else {
+    _user = UserProfile(name: fallbackName);
+    await saveUser();
+  }
 
-    // Sync with Firestore if logged in
+  // 2) Try Firestore, but NEVER fail login if it breaks
+  try {
     final firebaseUser = FirebaseAuth.instance.currentUser;
     if (firebaseUser != null) {
       final uid = firebaseUser.uid;
@@ -68,10 +69,17 @@ class UserProvider with ChangeNotifier {
             .set(data);
       }
     }
-
-    _updateStreak();
-    notifyListeners();
+  } catch (e) {
+    if (kDebugMode) {
+      print('Firestore loadUser error (ignored): $e');
+    }
+    // do nothing – keep local _user
   }
+
+  _updateStreak();
+  notifyListeners();
+}
+
 
   Future<void> saveUser() async {
     if (_user != null) {
