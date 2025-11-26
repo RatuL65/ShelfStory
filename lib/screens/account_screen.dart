@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 import '../providers/user_provider.dart';
 import '../utils/constants.dart';
@@ -21,6 +24,36 @@ class _AccountScreenState extends State<AccountScreen> {
   final _photoController = TextEditingController();
   DateTime? _dob;
   bool _isSaving = false;
+  bool _isUploadingPhoto = false;
+
+  File? _localImageFile;
+  final _picker = ImagePicker();
+
+  // Genre selection
+  final Set<String> _selectedGenres = {};
+
+  final List<String> _availableGenres = [
+    'Fiction',
+    'Mystery',
+    'Romance',
+    'Sci-Fi',
+    'Fantasy',
+    'Non-Fiction',
+    'Biography',
+    'Self-Help',
+    'Horror',
+    'Thriller',
+    'Historical',
+    'Poetry',
+    'Drama',
+    'Adventure',
+    'Young Adult',
+    'Children',
+    'Graphic Novel',
+    'Philosophy',
+    'Science',
+    'Technology',
+  ];
 
   @override
   void initState() {
@@ -33,6 +66,7 @@ class _AccountScreenState extends State<AccountScreen> {
     _bioController.text = appUser?.bio ?? '';
     _photoController.text = appUser?.photoUrl ?? '';
     _dob = appUser?.dob;
+    _selectedGenres.addAll(appUser?.favoriteGenres ?? []);
   }
 
   @override
@@ -42,6 +76,60 @@ class _AccountScreenState extends State<AccountScreen> {
     _bioController.dispose();
     _photoController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    try {
+      final picked = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 75,
+        maxWidth: 1024,
+        maxHeight: 1024,
+      );
+      
+      if (picked == null) return;
+
+      setState(() {
+        _localImageFile = File(picked.path);
+        _isUploadingPhoto = true;
+      });
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('No user logged in');
+      }
+
+      // Upload to Firebase Storage
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('profile_pictures')
+          .child('${user.uid}.jpg');
+
+      await ref.putFile(_localImageFile!);
+      final url = await ref.getDownloadURL();
+
+      setState(() {
+        _photoController.text = url;
+        _isUploadingPhoto = false;
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Photo uploaded successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      setState(() => _isUploadingPhoto = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to upload photo: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _saveProfile() async {
@@ -58,6 +146,7 @@ class _AccountScreenState extends State<AccountScreen> {
         bio: _bioController.text,
         dob: _dob,
         photoUrl: _photoController.text,
+        favoriteGenres: _selectedGenres.toList(),
       );
 
       if (!mounted) return;
@@ -124,26 +213,77 @@ class _AccountScreenState extends State<AccountScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (_photoController.text.isNotEmpty)
-                  Center(
-                    child: ClipOval(
-                      child: Image.network(
-                        _photoController.text,
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Icon(Icons.error),
-                      ),
-                    ),
-                  ),
-                if (_photoController.text.isNotEmpty)
-                  const SizedBox(height: 8),
+                // Profile Picture with Camera Icon
                 Center(
-                  child: Icon(
-                    Icons.person,
-                    size: 80,
-                    color: AppColors.accentGold,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      ClipOval(
+                        child: _localImageFile != null
+                            ? Image.file(
+                                _localImageFile!,
+                                width: 100,
+                                height: 100,
+                                fit: BoxFit.cover,
+                              )
+                            : (_photoController.text.isNotEmpty)
+                                ? Image.network(
+                                    _photoController.text,
+                                    width: 100,
+                                    height: 100,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        Icon(
+                                      Icons.person,
+                                      size: 60,
+                                      color: AppColors.accentGold,
+                                    ),
+                                  )
+                                : Container(
+                                    width: 100,
+                                    height: 100,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.accentGold.withOpacity(0.2),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.person,
+                                      size: 60,
+                                      color: AppColors.accentGold,
+                                    ),
+                                  ),
+                      ),
+                      if (_isUploadingPhoto)
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: InkWell(
+                          onTap: _isUploadingPhoto ? null : _pickAndUploadImage,
+                          child: CircleAvatar(
+                            radius: 18,
+                            backgroundColor: AppColors.accentGold,
+                            child: Icon(
+                              Icons.camera_alt,
+                              size: 18,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -183,7 +323,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   controller: _usernameController,
                   decoration: const InputDecoration(
                     labelText: 'Username',
-                    helperText: 'Unique name, e.g. shelfstory_fan',
+                    helperText: 'Lowercase, numbers, _ and - only',
                     border: OutlineInputBorder(),
                   ),
                   textInputAction: TextInputAction.next,
@@ -192,9 +332,9 @@ class _AccountScreenState extends State<AccountScreen> {
                       return 'Username is required';
                     }
                     final v = value.trim().toLowerCase();
-                    final regex = RegExp(r'^[a-z0-9_\.]+$');
+                    final regex = RegExp(r'^[a-z0-9_\-]+$');
                     if (!regex.hasMatch(v)) {
-                      return 'Only lowercase letters, numbers, dot, underscore';
+                      return 'Only lowercase, numbers, _ and -';
                     }
                     if (v.length < 3) {
                       return 'At least 3 characters';
@@ -265,16 +405,53 @@ class _AccountScreenState extends State<AccountScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _photoController,
-                  decoration: const InputDecoration(
-                    labelText: 'Profile Picture URL (optional)',
-                    border: OutlineInputBorder(),
+                // Favorite Genres
+                Text(
+                  'Favorite Genres',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? AppColors.darkText : AppColors.darkBrown,
                   ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _availableGenres.map((genre) {
+                    final isSelected = _selectedGenres.contains(genre);
+                    return FilterChip(
+                      label: Text(genre),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedGenres.add(genre);
+                          } else {
+                            _selectedGenres.remove(genre);
+                          }
+                        });
+                      },
+                      selectedColor: AppColors.accentGold.withOpacity(0.3),
+                      checkmarkColor: AppColors.darkBrown,
+                      backgroundColor: isDark
+                          ? AppColors.darkBackground
+                          : AppColors.cream,
+                      labelStyle: TextStyle(
+                        color: isSelected
+                            ? AppColors.darkBrown
+                            : (isDark
+                                ? AppColors.darkText
+                                : AppColors.primaryBrown),
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    );
+                  }).toList(),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: _isSaving ? null : _saveProfile,
+                  onPressed: (_isSaving || _isUploadingPhoto) ? null : _saveProfile,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(

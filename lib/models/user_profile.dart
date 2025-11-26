@@ -3,7 +3,8 @@ class UserProfile {
   final String? username;
   final String? bio;
   final String? photoUrl;
-  final DateTime? dob; // <-- Add this line
+  final DateTime? dob;
+  final List<String> favoriteGenres;
   final DateTime lastReadingDate;
   final int readingStreak;
   final int longestStreak;
@@ -16,7 +17,8 @@ class UserProfile {
     this.username,
     this.bio,
     this.photoUrl,
-    this.dob, // <-- Add this line
+    this.dob,
+    this.favoriteGenres = const [],
     DateTime? lastReadingDate,
     this.readingStreak = 1,
     this.longestStreak = 1,
@@ -30,7 +32,8 @@ class UserProfile {
     String? username,
     String? bio,
     String? photoUrl,
-    DateTime? dob, // <-- Add this line
+    DateTime? dob,
+    List<String>? favoriteGenres,
     DateTime? lastReadingDate,
     int? readingStreak,
     int? longestStreak,
@@ -43,7 +46,8 @@ class UserProfile {
       username: username ?? this.username,
       bio: bio ?? this.bio,
       photoUrl: photoUrl ?? this.photoUrl,
-      dob: dob ?? this.dob, // <-- Add this line
+      dob: dob ?? this.dob,
+      favoriteGenres: favoriteGenres ?? this.favoriteGenres,
       lastReadingDate: lastReadingDate ?? this.lastReadingDate,
       readingStreak: readingStreak ?? this.readingStreak,
       longestStreak: longestStreak ?? this.longestStreak,
@@ -59,7 +63,8 @@ class UserProfile {
       'username': username,
       'bio': bio,
       'photoUrl': photoUrl,
-      'dob': dob?.toIso8601String(), // <-- Add this line
+      'dob': dob?.toIso8601String(),
+      'favoriteGenres': favoriteGenres,
       'lastReadingDate': lastReadingDate.toIso8601String(),
       'readingStreak': readingStreak,
       'longestStreak': longestStreak,
@@ -77,7 +82,10 @@ class UserProfile {
       photoUrl: json['photoUrl'],
       dob: (json['dob'] != null && json['dob'] is String && json['dob'].isNotEmpty)
           ? DateTime.tryParse(json['dob'])
-          : null, // <-- Parse safely
+          : null,
+      favoriteGenres: json['favoriteGenres'] != null
+          ? List<String>.from(json['favoriteGenres'])
+          : [],
       lastReadingDate: DateTime.tryParse(json['lastReadingDate'] ?? '') ??
           DateTime.now(),
       readingStreak: json['readingStreak'] ?? 1,

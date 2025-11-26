@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 
 import '../utils/constants.dart';
 import '../providers/user_provider.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
-import 'account_setup_screen.dart';  // <-- Add this!
+import 'account_setup_screen.dart';
 
 class EmailAuthScreen extends StatefulWidget {
   const EmailAuthScreen({super.key});
@@ -17,11 +18,14 @@ class EmailAuthScreen extends StatefulWidget {
 
 class _EmailAuthScreenState extends State<EmailAuthScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _emailOrUsernameController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isLogin = true;
   bool _isLoading = false;
+  bool _checkingUsername = false;
+  String? _usernameError;
 
   bool _showPassword = false;
   bool _showConfirm = false;
@@ -30,29 +34,141 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _emailOrUsernameController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
+  Future<bool> _checkUsernameAvailability(String username) async {
+    if (username.trim().isEmpty || username.length < 3) return false;
+    
+    try {
+      final normalized = username.trim().toLowerCase();
+      final doc = await FirebaseFirestore.instance
+          .collection('usernames')
+          .doc(normalized)
+          .get();
+      return !doc.exists;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  void _onUsernameChanged(String value) async {
+    final normalized = value.trim().toLowerCase();
+    
+    // Basic validation
+    if (normalized.isEmpty) {
+      setState(() {
+        _usernameError = null;
+        _checkingUsername = false;
+      });
+      return;
+    }
+
+    if (normalized.length < 3) {
+      setState(() {
+        _usernameError = 'At least 3 characters';
+        _checkingUsername = false;
+      });
+      return;
+    }
+
+    final regex = RegExp(r'^[a-z0-9_\-]+$');
+    if (!regex.hasMatch(normalized)) {
+      setState(() {
+        _usernameError = 'Only lowercase, numbers, _ and -';
+        _checkingUsername = false;
+      });
+      return;
+    }
+
+    // Check availability
+    setState(() => _checkingUsername = true);
+    final available = await _checkUsernameAvailability(normalized);
+    if (mounted) {
+      setState(() {
+        _checkingUsername = false;
+        _usernameError = available ? null : 'Username taken';
+      });
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Extra username check for sign-up
+    if (!_isLogin) {
+      if (_usernameError != null || _checkingUsername) {
+        _showError('Please fix username issues before continuing');
+        return;
+      }
+      
+      final usernameAvailable = await _checkUsernameAvailability(
+        _usernameController.text
+      );
+      if (!usernameAvailable) {
+        _showError('Username is already taken');
+        return;
+      }
+    }
 
     setState(() => _isLoading = true);
 
     try {
       User? user;
       if (_isLogin) {
+        // Login: resolve username to email if needed
+        final input = _emailOrUsernameController.text.trim();
+        final email = await _authService.resolveUsernameToEmail(input);
+        
+        if (email == null) {
+          throw FirebaseAuthException(
+            code: 'user-not-found',
+            message: 'No account found with this username or email.',
+          );
+        }
+
         user = await _authService.signInWithEmail(
-          _emailController.text.trim(),
+          email,
           _passwordController.text,
         );
       } else {
+        // Sign up with email
         user = await _authService.signUpWithEmail(
-          _emailController.text.trim(),
+          _emailOrUsernameController.text.trim(),
           _passwordController.text,
         );
+
+        if (user != null) {
+          // Immediately save username to Firestore
+          final username = _usernameController.text.trim().toLowerCase();
+          final uid = user.uid;
+          
+          await FirebaseFirestore.instance.runTransaction((txn) async {
+            final usernameRef = FirebaseFirestore.instance
+                .collection('usernames')
+                .doc(username);
+            final userRef = FirebaseFirestore.instance
+                .collection('users')
+                .doc(uid);
+
+            txn.set(usernameRef, {'uid': uid});
+            txn.set(userRef, {
+              'email': user!.email,
+              'displayName': user.displayName ?? 'Reader',
+              'username': username,
+              'bio': '',
+              'photoUrl': '',
+              'dob': null,
+              'favoriteGenres': [],
+              'createdAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          });
+        }
       }
 
       if (user == null) {
@@ -67,11 +183,14 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
 
       if (!mounted) return;
 
+      // Navigate based on login vs sign-up
       if (_isLogin) {
+        // Login -> go directly to HomeScreen
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const HomeScreen()),
         );
       } else {
+        // Sign-up -> go to AccountSetupScreen
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const AccountSetupScreen()),
         );
@@ -132,22 +251,69 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
                   ),
                   const SizedBox(height: 24),
                   TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      border: OutlineInputBorder(),
+                    controller: _emailOrUsernameController,
+                    keyboardType: _isLogin 
+                        ? TextInputType.text 
+                        : TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      labelText: _isLogin ? 'Email or Username' : 'Email',
+                      border: const OutlineInputBorder(),
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Please enter your email';
+                        return _isLogin 
+                            ? 'Please enter your email or username'
+                            : 'Please enter your email';
                       }
-                      if (!value.contains('@')) {
+                      if (!_isLogin && !value.contains('@')) {
                         return 'Enter a valid email';
                       }
                       return null;
                     },
                   ),
+                  if (!_isLogin) ...[
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _usernameController,
+                      decoration: InputDecoration(
+                        labelText: 'Username',
+                        helperText: 'Lowercase, numbers, _ and - only',
+                        border: const OutlineInputBorder(),
+                        errorText: _usernameError,
+                        suffixIcon: _checkingUsername
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: Padding(
+                                  padding: EdgeInsets.all(12.0),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              )
+                            : (_usernameError == null &&
+                                    _usernameController.text.length >= 3)
+                                ? const Icon(Icons.check_circle,
+                                    color: Colors.green)
+                                : null,
+                      ),
+                      onChanged: _onUsernameChanged,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Username is required';
+                        }
+                        final v = value.trim().toLowerCase();
+                        final regex = RegExp(r'^[a-z0-9_\-]+$');
+                        if (!regex.hasMatch(v)) {
+                          return 'Only lowercase, numbers, _ and -';
+                        }
+                        if (v.length < 3) {
+                          return 'At least 3 characters';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _passwordController,

@@ -12,30 +12,28 @@ class UserProvider with ChangeNotifier {
 
   UserProfile? get user => _user;
 
-  // Helper for Firestore -> local user model
-  UserProfile _fromFirestore(Map<String, dynamic> data, String fallbackName) {
-    return UserProfile(
-      name: data['displayName'] ?? fallbackName,
-      username: data['username'],
-      bio: data['bio'],
-      photoUrl: data['photoUrl'],
-      dob: data['dob'] != null
-          ? DateTime.tryParse(data['dob']) ?? DateTime(2000)
-          : null,
-      lastReadingDate: _user?.lastReadingDate,
-      readingStreak: _user?.readingStreak ?? 1,
-      longestStreak: _user?.longestStreak ?? 1,
-      yearlyReadingGoal: _user?.yearlyReadingGoal ?? 0,
-      goalYear: _user?.goalYear ?? 0,
-      totalBooksRead: _user?.totalBooksRead ?? 0,
-    );
-  }
+  // Carefully merge Firestore data with local data
+UserProfile _mergeFirestoreData(Map<String, dynamic> data, UserProfile local) {
+  return local.copyWith(
+    name: data['displayName']?.isNotEmpty == true ? data['displayName'] : local.name,
+    username: data['username']?.isNotEmpty == true ? data['username'] : local.username,
+    bio: data['bio']?.isNotEmpty == true ? data['bio'] : local.bio,
+    photoUrl: data['photoUrl']?.isNotEmpty == true ? data['photoUrl'] : local.photoUrl,
+    dob: (data['dob'] != null && data['dob'].isNotEmpty)
+        ? DateTime.tryParse(data['dob']) ?? local.dob
+        : local.dob,
+    favoriteGenres: data['favoriteGenres'] != null
+        ? List<String>.from(data['favoriteGenres'])
+        : local.favoriteGenres,
+  );
+}
+
 
   Future<void> loadUser() async {
     final prefs = await SharedPreferences.getInstance();
     final fallbackName = prefs.getString('user_name') ?? 'Reader';
 
-    // 1. Local data via Hive
+    // 1. Always load local data first
     final userData = _userBox.get('profile');
     if (userData != null) {
       _user = UserProfile.fromJson(Map<String, dynamic>.from(userData));
@@ -44,7 +42,7 @@ class UserProvider with ChangeNotifier {
       await saveUser();
     }
 
-    // 2. Firestore sync if logged in
+    // 2. Try to sync with Firestore (non-blocking)
     try {
       final firebaseUser = FirebaseAuth.instance.currentUser;
       if (firebaseUser != null) {
@@ -54,36 +52,58 @@ class UserProvider with ChangeNotifier {
             .doc(uid)
             .get();
 
-        if (doc.exists) {
+        if (doc.exists && doc.data() != null) {
           final data = doc.data()!;
-          _user = _fromFirestore(data, _user!.name);
+          // Merge carefully - keep local data if Firestore has empty fields
+          _user = _mergeFirestoreData(data, _user!);
+          await saveUser(); // Save merged data back to Hive
         } else {
-          final data = {
-            'email': firebaseUser.email,
-            'displayName': _user!.name,
-            'username': _user!.username,
-            'bio': _user!.bio,
-            'photoUrl': _user!.photoUrl,
-            'dob': _user?.dob?.toIso8601String(),
-            'createdAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          };
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(uid)
-              .set(data);
+          // No Firestore doc yet - create one from local data
+          if (kDebugMode) {
+            print('No Firestore doc found, creating from local data');
+          }
+          await _createFirestoreDoc(firebaseUser, _user!);
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Firestore loadUser error: $e');
+        print('Firestore loadUser error (using local data): $e');
       }
-      // proceed with local data even if Firestore is unavailable
+      // Continue with local data - don't crash
     }
 
     _updateStreak();
     notifyListeners();
   }
+
+Future<void> _createFirestoreDoc(User firebaseUser, UserProfile profile) async {
+  try {
+    final data = {
+      'email': firebaseUser.email,
+      'displayName': profile.name,
+      'username': profile.username,
+      'bio': profile.bio,
+      'photoUrl': profile.photoUrl,
+      'dob': profile.dob?.toIso8601String(),
+      'favoriteGenres': profile.favoriteGenres,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(firebaseUser.uid)
+        .set(data, SetOptions(merge: true));
+    
+    if (kDebugMode) {
+      print('Created Firestore doc for user ${firebaseUser.uid}');
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      print('Failed to create Firestore doc: $e');
+    }
+  }
+}
+
 
   Future<void> saveUser() async {
     if (_user != null) {
@@ -168,90 +188,98 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Main profile update -- supports onboarding and later editing
-  Future<void> updateProfile({
-    required String username,
-    required String displayName,
-    required String bio,
-    DateTime? dob,
-    String? photoUrl,
-  }) async {
-    final firebaseUser = FirebaseAuth.instance.currentUser;
-    final newUsername = username.trim().toLowerCase();
-    final newDisplayName = displayName.trim();
-    final newBio = bio.trim();
-    final newPhotoUrl = photoUrl?.trim();
+ Future<void> updateProfile({
+  required String username,
+  required String displayName,
+  required String bio,
+  DateTime? dob,
+  String? photoUrl,
+  List<String>? favoriteGenres,
+}) async {
+  final firebaseUser = FirebaseAuth.instance.currentUser;
+  final newUsername = username.trim().toLowerCase();
+  final newDisplayName = displayName.trim();
+  final newBio = bio.trim();
+  final newPhotoUrl = photoUrl?.trim();
+  final newGenres = favoriteGenres ?? [];
 
-    // Update local model
-    _user = (_user ?? UserProfile(name: newDisplayName)).copyWith(
-      name: newDisplayName,
-      username: newUsername,
-      bio: newBio,
-      photoUrl: newPhotoUrl,
-      dob: dob,
-    );
-    await saveUser();
+  // Always update local model first
+  _user = (_user ?? UserProfile(name: newDisplayName)).copyWith(
+    name: newDisplayName,
+    username: newUsername,
+    bio: newBio,
+    photoUrl: newPhotoUrl,
+    dob: dob,
+    favoriteGenres: newGenres,
+  );
+  await saveUser();
 
-    if (firebaseUser == null) {
-      notifyListeners();
-      return;
-    }
-
-    try {
-      final uid = firebaseUser.uid;
-      final db = FirebaseFirestore.instance;
-
-      await db.runTransaction((txn) async {
-        final usernameRef = db.collection('usernames').doc(newUsername);
-        final userRef = db.collection('users').doc(uid);
-
-        final usernameSnap = await txn.get(usernameRef);
-        final userSnap = await txn.get(userRef);
-        final existing = userSnap.data() ?? {};
-        final oldUsername = (existing['username'] ?? '').toString();
-
-        if (usernameSnap.exists && usernameSnap.data()?['uid'] != uid) {
-          throw Exception('username-taken');
-        }
-
-        if (oldUsername.isNotEmpty && oldUsername != newUsername) {
-          final oldRef = db.collection('usernames').doc(oldUsername);
-          txn.delete(oldRef);
-        }
-
-        txn.set(usernameRef, {'uid': uid});
-
-        txn.set(
-          userRef,
-          {
-            'email': firebaseUser.email,
-            'displayName': newDisplayName,
-            'username': newUsername,
-            'bio': newBio,
-            'photoUrl': newPhotoUrl,
-            'dob': dob?.toIso8601String(),
-            'createdAt':
-                existing['createdAt'] ?? FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-          SetOptions(merge: true),
-        );
-      });
-
-      if (newDisplayName.isNotEmpty) {
-        await firebaseUser.updateDisplayName(newDisplayName);
-      }
-    } catch (e) {
-      if (e.toString().contains('username-taken')) {
-        throw e;
-      }
-      if (kDebugMode) {
-        print('updateProfile error: $e');
-      }
-    }
-
+  if (firebaseUser == null) {
     notifyListeners();
+    return;
   }
+
+  try {
+    final uid = firebaseUser.uid;
+    final db = FirebaseFirestore.instance;
+
+    await db.runTransaction((txn) async {
+      final usernameRef = db.collection('usernames').doc(newUsername);
+      final userRef = db.collection('users').doc(uid);
+
+      final usernameSnap = await txn.get(usernameRef);
+      final userSnap = await txn.get(userRef);
+      final existing = userSnap.data() ?? {};
+      final oldUsername = (existing['username'] ?? '').toString();
+
+      if (usernameSnap.exists && usernameSnap.data()?['uid'] != uid) {
+        throw Exception('username-taken');
+      }
+
+      if (oldUsername.isNotEmpty && oldUsername != newUsername) {
+        final oldRef = db.collection('usernames').doc(oldUsername);
+        txn.delete(oldRef);
+      }
+
+      txn.set(usernameRef, {'uid': uid});
+
+      txn.set(
+        userRef,
+        {
+          'email': firebaseUser.email,
+          'displayName': newDisplayName,
+          'username': newUsername,
+          'bio': newBio,
+          'photoUrl': newPhotoUrl,
+          'dob': dob?.toIso8601String(),
+          'favoriteGenres': newGenres,
+          'createdAt':
+              existing['createdAt'] ?? FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+    });
+
+    if (newDisplayName.isNotEmpty) {
+      await firebaseUser.updateDisplayName(newDisplayName);
+    }
+    
+    if (kDebugMode) {
+      print('Profile updated successfully in Firestore');
+    }
+  } catch (e) {
+    if (e.toString().contains('username-taken')) {
+      throw e;
+    }
+    if (kDebugMode) {
+      print('updateProfile error: $e');
+    }
+  }
+
+  notifyListeners();
+}
+
 
   void clear() {
     _user = null;
